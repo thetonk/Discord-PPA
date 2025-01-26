@@ -128,14 +128,14 @@ def run_update_process():
     beta = NamedTemporaryFile(suffix=".deb")
     try:
         if is_package_new(discord_stable):
-            download_latest_deb(stable, discord_stable.url)
-            update_reprepro(stable, discord_stable.name)
+            download_latest_deb(stable, discord_stable)
+            update_reprepro(stable, discord_stable)
         if is_package_new(discord_beta):
-            download_latest_deb(beta, discord_beta.url)
-            update_reprepro(beta, discord_beta.name)
+            download_latest_deb(beta, discord_beta)
+            update_reprepro(beta, discord_beta)
         if is_package_new(discord_canary):
-            download_latest_deb(canary, discord_canary.url)
-            update_reprepro(canary, discord_canary.name)
+            download_latest_deb(canary, discord_canary)
+            update_reprepro(canary, discord_canary)
     finally:
         stable.close()
         beta.close()
