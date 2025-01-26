@@ -23,7 +23,6 @@ import sys
 import time
 from sched import scheduler
 from email.utils import parsedate
-from typing import NamedTuple
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 
@@ -32,14 +31,15 @@ import urllib3
 delay_secs = 900
 http_headers = {"User-Agent": r"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"}
 
-class DiscordDistribution(NamedTuple):
-    name: str
-    url: str
-    last_modified: int
+class DiscordDistribution():
+    def __init__(self, distro_name: str, url: str, last_modified: int = 0) -> None:
+        self.name = distro_name
+        self.url = url
+        self.last_modified = last_modified
 
-discord_stable = DiscordDistribution("stable", r"https://discordapp.com/api/download?platform=linux&format=deb", 0)
-discord_beta = DiscordDistribution("beta", r"https://discordapp.com/api/download/ptb?platform=linux&format=deb", 0)
-discord_canary = DiscordDistribution("canary", r"https://discordapp.com/api/download/canary?platform=linux&format=deb", 0)
+discord_stable = DiscordDistribution("stable", r"https://discordapp.com/api/download?platform=linux&format=deb")
+discord_beta = DiscordDistribution("beta", r"https://discordapp.com/api/download/ptb?platform=linux&format=deb")
+discord_canary = DiscordDistribution("canary", r"https://discordapp.com/api/download/canary?platform=linux&format=deb")
 
 try:
     ppa_path = sys.argv[1]
