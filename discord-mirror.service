@@ -4,7 +4,7 @@ After=network-online.target
 
 [Service]
 User=mirror-syncer
-WorkingDirectory=/home/mirror-syncer
+WorkingDirectory=/home/mirror-syncer/Discord-PPA
 ExecStart=/home/mirror-syncer/Discord-PPA/.venv/bin/python3 lookup-server.py /mnt/mydata/discordMirror
 Restart=always
 

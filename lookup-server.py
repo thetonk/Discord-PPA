@@ -110,9 +110,9 @@ def run_update_process():
     canary = NamedTemporaryFile(suffix=".deb")
     try:
         download_latest_deb(stable, discord_url)
-        update_reprepro(stable, "all")
+        update_reprepro(stable, "stable")
         download_latest_deb(beta, discord_pbeta_url)
-        update_reprepro(beta, "public-beta")
+        update_reprepro(beta, "beta")
         download_latest_deb(canary, discord_canary_url)
         update_reprepro(canary, "canary")
     finally:
