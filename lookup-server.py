@@ -14,17 +14,17 @@
 #     You should have received a copy of the GNU General Public License
 #    along with this program. If not, see <http://www.gnu.org/licenses/>.
 import logging
-import os
+#import os
 import sys
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
+#from logging.handlers import RotatingFileHandler
+#from pathlib import Path
 from sched import scheduler
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 from time import sleep, time
 
 import urllib3
-from daemonize import Daemonize
+#from daemonize import Daemonize
 
 delay_secs = 900
 discord_url = r"https://discordapp.com/api/download?platform=linux&format=deb"
@@ -41,25 +41,29 @@ except IndexError:
 reprepro_cmd = "reprepro -b {0} includedeb %dist% %file%".format(ppa_path)
 http = urllib3.PoolManager()
 
-home = str(Path.home())
-pid = "{0}/discord-ppa/discord-ppa.pid".format(home)
-try:
-    os.mkdir("{0}/discord-ppa".format(home))
-except FileExistsError:
-    pass
+#home = str(Path.home())
+#pid = "discord-ppa.pid"
+#try:
+#    os.mkdir("{0}/discord-ppa".format(home))
+#except FileExistsError:
+#    pass
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('lookup-server')
 logger.setLevel(logging.INFO)
-fmt = logging.Formatter("%(process)d - %(asctime)s | [%(levelname)s]: %(message)s")
+fmt = logging.Formatter("%(name)s - %(asctime)s | [%(levelname)s]: %(message)s")
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+handler.setFormatter(fmt)
+logger.addHandler(handler)
 
-file_handler = RotatingFileHandler(
-    "{0}/discord-ppa/discord-ppa.log".format(home), "w", maxBytes=2 << 20, backupCount=2
-)
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(fmt)
+#file_handler = RotatingFileHandler(
+#    "discord-ppa.log".format(home), "w", maxBytes=2 << 20, backupCount=2
+#    )
+#file_handler.setLevel(logging.INFO)
+#file_handler.setFormatter(fmt)
 
-logger.addHandler(file_handler)
-keep_fds = [file_handler.stream.fileno()]
+#logger.addHandler(file_handler)
+#keep_fds = [file_handler.stream.fileno()]
 
 
 def main():
@@ -117,7 +121,10 @@ def run_update_process():
         canary.close()
 
 
-daemon = Daemonize(
-    app="discord-ppa", pid=pid, action=main, keep_fds=keep_fds, logger=logger
-)
-daemon.start()
+#daemon = Daemonize(
+#    app="discord-ppa", pid=pid, action=main, keep_fds=keep_fds, logger=logger
+#)
+#daemon.start()
+
+if __name__ == "__main__":
+    main()
