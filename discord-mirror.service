@@ -1,0 +1,12 @@
+[Unit]
+Description=Discord mirror package sync
+After=network-online.target
+
+[Service]
+User=mirror-syncer
+WorkingDirectory=/home/mirror-syncer
+ExecStart=/home/mirror-syncer/Discord-PPA/.venv/bin/python3 lookup-server.py /mnt/mydata/discordMirror
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
