@@ -13,25 +13,33 @@
 #
 #     You should have received a copy of the GNU General Public License
 #    along with this program. If not, see <http://www.gnu.org/licenses/>.
-import logging
-#import os
-import sys
+
 #from logging.handlers import RotatingFileHandler
 #from pathlib import Path
+#import os
+#from daemonize import Daemonize
+import logging
+import sys
+import time
 from sched import scheduler
+from email.utils import parsedate
+from typing import NamedTuple
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
-from time import sleep, time
 
 import urllib3
-#from daemonize import Daemonize
 
 delay_secs = 900
-discord_url = r"https://discordapp.com/api/download?platform=linux&format=deb"
-discord_pbeta_url = r"https://discordapp.com/api/download/ptb?platform=linux&format=deb"
-discord_canary_url = (
-    r"https://discordapp.com/api/download/canary?platform=linux&format=deb"
-)
+http_headers = {"User-Agent": r"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"}
+
+class DiscordDistribution(NamedTuple):
+    name: str
+    url: str
+    last_modified: int
+
+discord_stable = DiscordDistribution("stable", r"https://discordapp.com/api/download?platform=linux&format=deb", 0)
+discord_beta = DiscordDistribution("beta", r"https://discordapp.com/api/download/ptb?platform=linux&format=deb", 0)
+discord_canary = DiscordDistribution("canary", r"https://discordapp.com/api/download/canary?platform=linux&format=deb", 0)
 
 try:
     ppa_path = sys.argv[1]
@@ -67,7 +75,7 @@ logger.addHandler(handler)
 
 
 def main():
-    sched = scheduler(time, sleep)
+    sched = scheduler(time.time, time.sleep)
     run_update_process()
     try:
         while True:
@@ -77,44 +85,57 @@ def main():
         exit(0)
 
 
-def download_latest_deb(fp: NamedTemporaryFile, url: str):
-    result = http.request("GET", url, redirect=True)
+def is_package_new(distro: DiscordDistribution) -> bool:
+    result = http.request("HEAD", distro.url, headers=http_headers, redirect=True)
+    if result.status == 200 and "last-modified" in result.headers:
+        logger.info(f"Got last modified date successfully for URL {distro.url}.")
+        last_modified_header = result.headers["last-modified"]
+        last_modified = int(time.mktime(parsedate(last_modified_header)))
+        logger.info(f"Distribution '{distro.name}' got last modified on {last_modified_header}")
+        if last_modified != distro.last_modified:
+            distro.last_modified = last_modified
+            return True
+        return False
+    else:
+        logger.error(f"Could not get last modified date for URL {distro.url}! Status code: {result.status}")
+        return None
+
+
+def download_latest_deb(fp: NamedTemporaryFile, distro: DiscordDistribution):
+    result = http.request("GET", distro.url, headers=http_headers, redirect=True)
     if result.status == 200:
-        logger.info("Downloaded correctly Discord .deb file")
+        logger.info(f"Downloaded correctly Discord .deb file for distribution '{distro.name}'!")
         fp.write(result.data)
     else:
-        logger.error(
-            "Discord .deb file could not be downloaded - status "
-            "code: {0}".format(result.status)
-        )
+        logger.error(f"Discord .deb file for distribution '{distro.name}' could not be downloaded! Status code: {result.status}")
 
 
-def update_reprepro(fp: NamedTemporaryFile, dist: str):
-    cmd = reprepro_cmd.replace("%dist%", dist).replace("%file%", fp.name).split()
+def update_reprepro(fp: NamedTemporaryFile, distro: DiscordDistribution):
+    cmd = reprepro_cmd.replace("%dist%", distro.name).replace("%file%", fp.name).split()
     proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
     out, err = proc.communicate()
     if proc.returncode != 0:
         error = err.decode("utf-8")
-        logger.error(
-            "reprepro ended with an error - ret. code: "
-            "{0} | output: \n{1}".format(proc.returncode, error)
-        )
+        logger.error(f"reprepro for distribution '{distro.name}' ended with an error - ret. code: {proc.returncode} | output:\n {error}")
     else:
         output = out.decode("utf-8") + "\n" + err.decode("utf-8")
-        logger.info("reprepro finished OK | output:\n {0}".format(output))
+        logger.info(f"reprepro for distribution {distro.name} finished OK | output:\n {output}")
 
 
 def run_update_process():
+    canary = NamedTemporaryFile(suffix=".deb")
     stable = NamedTemporaryFile(suffix=".deb")
     beta = NamedTemporaryFile(suffix=".deb")
-    canary = NamedTemporaryFile(suffix=".deb")
     try:
-        download_latest_deb(stable, discord_url)
-        update_reprepro(stable, "stable")
-        download_latest_deb(beta, discord_pbeta_url)
-        update_reprepro(beta, "beta")
-        download_latest_deb(canary, discord_canary_url)
-        update_reprepro(canary, "canary")
+        if is_package_new(discord_stable):
+            download_latest_deb(stable, discord_stable.url)
+            update_reprepro(stable, discord_stable.name)
+        if is_package_new(discord_beta):
+            download_latest_deb(beta, discord_beta.url)
+            update_reprepro(beta, discord_beta.name)
+        if is_package_new(discord_canary):
+            download_latest_deb(canary, discord_canary.url)
+            update_reprepro(canary, discord_canary.name)
     finally:
         stable.close()
         beta.close()
