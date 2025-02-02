@@ -1,5 +1,6 @@
 #                             discord-ppa
 #                  Copyright (C) 2020 - Javinator9889
+#                  Copyright (C) 2025 - thetonk
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -40,12 +41,14 @@ class DiscordDistribution():
 discord_stable = DiscordDistribution("stable", r"https://discordapp.com/api/download?platform=linux&format=deb")
 discord_beta = DiscordDistribution("beta", r"https://discordapp.com/api/download/ptb?platform=linux&format=deb")
 discord_canary = DiscordDistribution("canary", r"https://discordapp.com/api/download/canary?platform=linux&format=deb")
+vesktop_stable = DiscordDistribution("stable", r"https://vencord.dev/download/vesktop/amd64/deb")
 
 try:
     ppa_path = sys.argv[1]
 except IndexError:
     print("You must provide the PPA directory")
     exit(1)
+
 reprepro_cmd = "reprepro -b {0} includedeb %dist% %file%".format(ppa_path)
 http = urllib3.PoolManager()
 
@@ -98,7 +101,7 @@ def is_package_new(distro: DiscordDistribution) -> bool:
         return False
     else:
         logger.error(f"Could not get last modified date for URL {distro.url}! Status code: {result.status}")
-        return None
+        return False
 
 
 def download_latest_deb(fp: NamedTemporaryFile, distro: DiscordDistribution):
@@ -123,23 +126,12 @@ def update_reprepro(fp: NamedTemporaryFile, distro: DiscordDistribution):
 
 
 def run_update_process():
-    canary = NamedTemporaryFile(suffix=".deb")
-    stable = NamedTemporaryFile(suffix=".deb")
-    beta = NamedTemporaryFile(suffix=".deb")
-    try:
-        if is_package_new(discord_stable):
-            download_latest_deb(stable, discord_stable)
-            update_reprepro(stable, discord_stable)
-        if is_package_new(discord_beta):
-            download_latest_deb(beta, discord_beta)
-            update_reprepro(beta, discord_beta)
-        if is_package_new(discord_canary):
-            download_latest_deb(canary, discord_canary)
-            update_reprepro(canary, discord_canary)
-    finally:
-        stable.close()
-        beta.close()
-        canary.close()
+    discord_packages = (discord_stable, discord_beta, discord_canary, vesktop_stable)
+    for package in discord_packages:
+        with NamedTemporaryFile(suffix=".deb") as tempfile:
+            if is_package_new(package):
+                download_latest_deb(tempfile, package)
+                update_reprepro(tempfile, package)
 
 
 #daemon = Daemonize(

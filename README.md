@@ -44,6 +44,7 @@ https://ppa.javinator9889.com
 ```
                                 Discord PPA
                     Copyright (C) 2020  Javinator9889
+                    Copyright (C) 2025  thetonk
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
