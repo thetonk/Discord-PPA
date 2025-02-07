@@ -17,31 +17,30 @@
 
 #from logging.handlers import RotatingFileHandler
 #from pathlib import Path
-#import os
 #from daemonize import Daemonize
 import logging
 import sys
 import time
+import dotenv
+import os
+import urllib3
+import distribution
 from sched import scheduler
-from email.utils import parsedate
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile
 
-import urllib3
+dotenv.load_dotenv()
 
-delay_secs = 900
-http_headers = {"User-Agent": r"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0"}
+delay_secs = int(os.getenv("DELAY_SECONDS", 900))
+user_agent = os.getenv("USER_AGENT", r"Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0")
+github_access_token = os.getenv("GITHUB_TOKEN", None)
+http_headers = {"User-Agent": user_agent}
 
-class DiscordDistribution():
-    def __init__(self, distro_name: str, url: str, last_modified: int = 0) -> None:
-        self.name = distro_name
-        self.url = url
-        self.last_modified = last_modified
 
-discord_stable = DiscordDistribution("stable", r"https://discordapp.com/api/download?platform=linux&format=deb")
-discord_beta = DiscordDistribution("beta", r"https://discordapp.com/api/download/ptb?platform=linux&format=deb")
-discord_canary = DiscordDistribution("canary", r"https://discordapp.com/api/download/canary?platform=linux&format=deb")
-vesktop_stable = DiscordDistribution("stable", r"https://vencord.dev/download/vesktop/amd64/deb")
+discord_stable = distribution.DiscordDistribution("stable", r"https://discordapp.com/api/download?platform=linux&format=deb", http_headers)
+discord_beta = distribution.DiscordDistribution("beta", r"https://discordapp.com/api/download/ptb?platform=linux&format=deb", http_headers)
+discord_canary = distribution.DiscordDistribution("canary", r"https://discordapp.com/api/download/canary?platform=linux&format=deb", http_headers)
+vesktop_stable = distribution.GithubDistribution("Vencord/Vesktop", "stable", github_access_token)
 
 try:
     ppa_path = sys.argv[1]
@@ -88,32 +87,7 @@ def main():
         exit(0)
 
 
-def is_package_new(distro: DiscordDistribution) -> bool:
-    result = http.request("HEAD", distro.url, headers=http_headers, redirect=True)
-    if result.status == 200 and "last-modified" in result.headers:
-        logger.info(f"Got last modified date successfully for URL {distro.url}.")
-        last_modified_header = result.headers["last-modified"]
-        last_modified = int(time.mktime(parsedate(last_modified_header)))
-        logger.info(f"Distribution '{distro.name}' got last modified on {last_modified_header}")
-        if last_modified != distro.last_modified:
-            distro.last_modified = last_modified
-            return True
-        return False
-    else:
-        logger.error(f"Could not get last modified date for URL {distro.url}! Status code: {result.status}")
-        return False
-
-
-def download_latest_deb(fp: NamedTemporaryFile, distro: DiscordDistribution):
-    result = http.request("GET", distro.url, headers=http_headers, redirect=True)
-    if result.status == 200:
-        logger.info(f"Downloaded correctly Discord .deb file for distribution '{distro.name}'!")
-        fp.write(result.data)
-    else:
-        logger.error(f"Discord .deb file for distribution '{distro.name}' could not be downloaded! Status code: {result.status}")
-
-
-def update_reprepro(fp: NamedTemporaryFile, distro: DiscordDistribution):
+def update_reprepro(fp: NamedTemporaryFile, distro: distribution.Distribution):
     cmd = reprepro_cmd.replace("%dist%", distro.name).replace("%file%", fp.name).split()
     proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
     out, err = proc.communicate()
@@ -129,8 +103,8 @@ def run_update_process():
     discord_packages = (discord_stable, discord_beta, discord_canary, vesktop_stable)
     for package in discord_packages:
         with NamedTemporaryFile(suffix=".deb") as tempfile:
-            if is_package_new(package):
-                download_latest_deb(tempfile, package)
+            if package.is_package_new():
+                package.download_latest_deb(tempfile)
                 update_reprepro(tempfile, package)
 
 
