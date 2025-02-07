@@ -11,7 +11,7 @@ class Distribution():
         self.url = url
         self.http = urllib3.PoolManager()
         self.http_headers = headers
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('lookup-server.distribution')
 
     def _download_latest_deb(self, url: str, fp: NamedTemporaryFile):
         result = self.http.request("GET", url, headers=self.http_headers, redirect=True)
